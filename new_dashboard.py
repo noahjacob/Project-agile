@@ -132,8 +132,8 @@ def display_hourly_weather(hourly_weather, unit):
 
     st.plotly_chart(fig)
 
-def get_5_day_forecast(lat, lon, unit='metric'):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&temperature_unit={unit}&timezone=auto"
+def get_5_day_forecast(lat, lon, unit='fahrenheit'):
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit={unit}&timezone=auto"
     response = requests.get(url)
     
     if response.status_code == 200:
@@ -190,6 +190,7 @@ def main():
         lat, lon, address = get_coordinates(city) 
 
         if lat and lon and address:
+            
             st.sidebar.success(f"📍 Selected: {address}")
             
             weather_data = get_weather(lat, lon, unit)
@@ -201,7 +202,6 @@ def main():
             if hourly_weather:
                 # Display hourly weather trends
                 display_hourly_weather(hourly_weather, unit)
-
             forecast_data = {
                 "Date": ['Monday, Apr 07', 'Tuesday, Apr 08', 'Wednesday, Apr 09', 'Thursday, Apr 10', 'Friday, Apr 11'],
                 "Weather": ['Clear Sky', 'Partly Cloudy', 'Rainy', 'Sunny', 'Cloudy'],
