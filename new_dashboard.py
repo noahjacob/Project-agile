@@ -27,9 +27,9 @@ def get_coordinates(city_name):
 
             # Ensure that the result is actually a city and not a region or street
             location = location_data[0]
-            
+
             # Check if the type of location is a city or town
-            if location['addresstype'] in ['city', 'town']: 
+            if location['addresstype'] in ['city', 'town']:
                 full_address = location['display_name']
                 return float(location['lat']), float(location['lon']), full_address
             else:
@@ -90,25 +90,24 @@ def display_hourly_weather(hourly_weather, unit):
     })
     current_time = datetime.now()
     future_time = current_time + timedelta(hours=12)
-    
+
     # Filter the DataFrame to only include data within the next 12 hours
     df = df[(df["Time"] >= current_time) & (df["Time"] <= future_time)]
 
     # Split 'Time' into 'Date' and 'Hour' for easier use in the tooltip
     df["Date"] = df["Time"].dt.strftime("%b %d, %Y")
     df["Hour"] = df["Time"].dt.strftime("%I:%M %p")  # Format as Hour:Minute
-    
 
     # Plot the chart using Plotly
     fig = px.line(df, x="Time", y=["Temperature", "Humidity"], title="Hourly Temperature & Humidity Trend")
 
     # Update hovertemplate for Temperature
     unit = unit[0].upper()
-    df["Unit"] = unit 
+    df["Unit"] = unit
     fig.update_traces(
         hovertemplate="Temperature: <b>%{y}°%{customdata[1]}</b><br>Date: %{customdata[0]}<br>",
         selector=dict(name="Temperature"),
- 
+
         customdata=df[["Date", "Unit"]],
 
     )
@@ -121,13 +120,13 @@ def display_hourly_weather(hourly_weather, unit):
     )
     fig.update_layout(
         xaxis=dict(
-            tickformat="%H:%M", 
+            tickformat="%H:%M",
             title="Time"
         ),
         yaxis=dict(
-            title="Weather Metrics" 
+            title="Weather Metrics"
         ),
-        legend_title = "Legend",
+        legend_title="Legend",
         hovermode="x"
     )
 
@@ -136,17 +135,17 @@ def display_hourly_weather(hourly_weather, unit):
 def get_7_day_forecast(lat, lon, unit='metric'):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit={unit}&timezone=auto"
     response = requests.get(url)
-    
+
 
     if response.status_code == 200:
         return response.json()
-    
+
     else:
         st.error("Failed to fetch forecast data.")
         return None
 
 def display_7_day_forecast(lat, lon, unit):
-    forecast_data = get_7_day_forecast(lat, lon, unit)    
+    forecast_data = get_7_day_forecast(lat, lon, unit)
     daily_data = forecast_data["daily"]
 
 
@@ -158,7 +157,7 @@ def display_7_day_forecast(lat, lon, unit):
             "Weather Code": daily_data["weathercode"]
     })
 
-                    
+
     weather_code_mapping = {
                 0: "Clear sky ☀️",
                 1: "Mainly clear 🌤️",
@@ -190,7 +189,7 @@ def display_7_day_forecast(lat, lon, unit):
     st.markdown("### 7-Day Weather Forecast")
     df.index= df.index+1
     st.dataframe(df)
-            
+
 
 def set_background(weather_code):
     # Mapping Weather Code to background image URL
@@ -223,6 +222,60 @@ def set_background(weather_code):
     )
 
 
+    if response.status_code == 200:
+        return response.json()  # Return the response in JSON format
+    else:
+        st.error("Failed to fetch sunrise and sunset data.")  # Error handling
+        return None  # Return None in case of failure
+
+# Function to get sunrise and sunset times
+def get_sunrise_sunset(lat, lon):
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset&timezone=auto"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        return response.json()  # Return the response in JSON format
+    else:
+        st.error("Failed to fetch sunrise and sunset data.")  # Error handling
+        return None
+
+
+# Function to display sunrise and sunset times with Streamlit components
+def display_sunrise_sunset(sunrise_sunset_data):
+    try:
+        # Extract sunrise and sunset times from the API response
+        sunrise_time = sunrise_sunset_data["daily"]["sunrise"][0]
+        sunset_time = sunrise_sunset_data["daily"]["sunset"][0]
+
+        # Convert the sunrise and sunset times to datetime objects
+        sunrise_time_obj = datetime.fromisoformat(sunrise_time)
+        sunset_time_obj = datetime.fromisoformat(sunset_time)
+
+        # Format the times as strings for display
+        sunrise_time_str = sunrise_time_obj.strftime('%I:%M %p')
+        sunset_time_str = sunset_time_obj.strftime('%I:%M %p')
+
+        # Define a consistent image size for both images
+        image_size = (700, 400)  # You can adjust the size to fit your needs
+
+        # Display sunrise and sunset cards side by side
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Display Sunrise with st.image
+            st.metric(f"**🌅 Sunrise:**", sunrise_time_str, border=True)
+
+        with col2:
+            # Display Sunset with st.image
+            # st.image('https://i.imgur.com/RNgabm3.jpeg', use_container_width=True)
+            st.metric(f"**🌇 Sunset:**", sunset_time_str, border=True)
+
+    except KeyError as e:
+        st.error(f"KeyError: Missing key {e}. Please check the structure of the API response.")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+
+
 # Main execution
 def main():
     city_name, lat, lon = get_current_location()
@@ -248,10 +301,10 @@ def main():
         hourly_weather = get_hourly_weather(lat, lon, unit)
     
     if city:
-        lat, lon, address = get_coordinates(city)
-         
+        lat, lon, address = get_coordinates(city) 
 
         if lat and lon and address:
+            
             st.sidebar.success(f"📍 Selected: {address}")
             
             weather_data = get_weather(lat, lon, unit)
@@ -264,8 +317,13 @@ def main():
                 # Display hourly weather trends
                 display_hourly_weather(hourly_weather, unit)
 
+            # Fetch and display sunrise and sunset times
+            sunrise_sunset_data = get_sunrise_sunset(lat, lon)
+            if sunrise_sunset_data:
+                display_sunrise_sunset(sunrise_sunset_data)
+
             display_7_day_forecast(lat, lon, unit)
-            
+
             # After fetching weather data
             current_weather_code = weather_data["current"]["weather_code"]
 
