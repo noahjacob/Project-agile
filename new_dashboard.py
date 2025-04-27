@@ -27,9 +27,9 @@ def get_coordinates(city_name):
 
             # Ensure that the result is actually a city and not a region or street
             location = location_data[0]
-            
+
             # Check if the type of location is a city or town
-            if location['addresstype'] in ['city', 'town']: 
+            if location['addresstype'] in ['city', 'town']:
                 full_address = location['display_name']
                 return float(location['lat']), float(location['lon']), full_address
             else:
@@ -89,25 +89,24 @@ def display_hourly_weather(hourly_weather, unit):
     })
     current_time = datetime.now()
     future_time = current_time + timedelta(hours=12)
-    
+
     # Filter the DataFrame to only include data within the next 12 hours
     df = df[(df["Time"] >= current_time) & (df["Time"] <= future_time)]
 
     # Split 'Time' into 'Date' and 'Hour' for easier use in the tooltip
     df["Date"] = df["Time"].dt.strftime("%b %d, %Y")
     df["Hour"] = df["Time"].dt.strftime("%I:%M %p")  # Format as Hour:Minute
-    
 
     # Plot the chart using Plotly
     fig = px.line(df, x="Time", y=["Temperature", "Humidity"], title="Hourly Temperature & Humidity Trend")
 
     # Update hovertemplate for Temperature
     unit = unit[0].upper()
-    df["Unit"] = unit 
+    df["Unit"] = unit
     fig.update_traces(
         hovertemplate="Temperature: <b>%{y}°%{customdata[1]}</b><br>Date: %{customdata[0]}<br>",
         selector=dict(name="Temperature"),
- 
+
         customdata=df[["Date", "Unit"]],
 
     )
@@ -120,27 +119,29 @@ def display_hourly_weather(hourly_weather, unit):
     )
     fig.update_layout(
         xaxis=dict(
-            tickformat="%H:%M", 
+            tickformat="%H:%M",
             title="Time"
         ),
         yaxis=dict(
-            title="Weather Metrics" 
+            title="Weather Metrics"
         ),
-        legend_title = "Legend",
+        legend_title="Legend",
         hovermode="x"
     )
 
     st.plotly_chart(fig)
 
+
 def get_5_day_forecast(lat, lon, unit='fahrenheit'):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit={unit}&timezone=auto"
     response = requests.get(url)
-    
+
     if response.status_code == 200:
         return response.json()
     else:
         st.error("Failed to fetch forecast data.")
         return None
+
 
 def display_5_day_forecast(forecast_data):
     # Extract necessary data
@@ -159,8 +160,54 @@ def display_5_day_forecast(forecast_data):
             'Max Temp (°C)': max_temp,
             'Precipitation (%)': precip_prob
         })
-    
-   
+
+
+# Function to get sunrise and sunset times
+def get_sunrise_sunset(lat, lon):
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset&timezone=auto"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        return response.json()  # Return the response in JSON format
+    else:
+        st.error("Failed to fetch sunrise and sunset data.")  # Error handling
+        return None  # Return None in case of failure
+
+# Function to display sunrise and sunset times with Streamlit components
+def display_sunrise_sunset(sunrise_sunset_data):
+    try:
+        # Extract sunrise and sunset times from the API response
+        sunrise_time = sunrise_sunset_data["daily"]["sunrise"][0]
+        sunset_time = sunrise_sunset_data["daily"]["sunset"][0]
+
+        # Convert the sunrise and sunset times to datetime objects
+        sunrise_time_obj = datetime.fromisoformat(sunrise_time)
+        sunset_time_obj = datetime.fromisoformat(sunset_time)
+
+        # Format the times as strings for display
+        sunrise_time_str = sunrise_time_obj.strftime('%I:%M %p')
+        sunset_time_str = sunset_time_obj.strftime('%I:%M %p')
+
+        # Define a consistent image size for both images
+        image_size = (700, 400)  # You can adjust the size to fit your needs
+
+        # Display sunrise and sunset cards side by side
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Display Sunrise with st.image
+            st.metric(f"**🌅 Sunrise:**", sunrise_time_str, border=True)
+
+        with col2:
+            # Display Sunset with st.image
+            # st.image('https://i.imgur.com/RNgabm3.jpeg', use_container_width=True)
+            st.metric(f"**🌇 Sunset:**", sunset_time_str, border=True)
+
+    except KeyError as e:
+        st.error(f"KeyError: Missing key {e}. Please check the structure of the API response.")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+
 
 # Main execution
 def main():
@@ -173,26 +220,27 @@ def main():
     st.markdown("<h1 style='text-align: center;'>Weather Dashboard</h1>", unsafe_allow_html=True)
     st.markdown(f"<h4 style='text-align: center;'>{datetime.now().strftime('%A, %B %d, %Y')}</h4>", unsafe_allow_html=True)
 
-    # Sidebar for city search and more features.
+    # Sidebar for city search and more features
     st.sidebar.header("🔍 Search City")
     city = st.sidebar.text_input("Enter city name", city_name)
     unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
     st.sidebar.markdown("---")
     st.sidebar.write("⚡ **Powered by Open-Meteo API**")
 
-    # Fetch weather data for current location
+    # Fetch weather data for the current location
     unit = unit.lower()
     with st.spinner("Fetching weather data..."):
         weather_data = get_weather(lat, lon, unit)
         hourly_weather = get_hourly_weather(lat, lon, unit)
-    
+
     if city:
-        lat, lon, address = get_coordinates(city) 
+        # Fetch coordinates for the entered city
+        lat, lon, address = get_coordinates(city)
 
         if lat and lon and address:
-            
             st.sidebar.success(f"📍 Selected: {address}")
-            
+
+            # Fetch weather data for the selected city
             weather_data = get_weather(lat, lon, unit)
             if weather_data:
                 # Display current weather metrics
@@ -202,6 +250,13 @@ def main():
             if hourly_weather:
                 # Display hourly weather trends
                 display_hourly_weather(hourly_weather, unit)
+
+            # Fetch and display sunrise and sunset times
+            sunrise_sunset_data = get_sunrise_sunset(lat, lon)
+            if sunrise_sunset_data:
+                display_sunrise_sunset(sunrise_sunset_data)
+
+            # Example 5-day weather forecast data (this should come from another API or static data)
             forecast_data = {
                 "Date": ['Monday, Apr 07', 'Tuesday, Apr 08', 'Wednesday, Apr 09', 'Thursday, Apr 10', 'Friday, Apr 11'],
                 "Weather": ['Clear Sky', 'Partly Cloudy', 'Rainy', 'Sunny', 'Cloudy'],
@@ -210,14 +265,30 @@ def main():
                 "Precipitation (%)": [0, 20, 80, 0, 30]
             }
 
-            # Convert to DataFrame
+            # Convert forecast data to DataFrame for visualization
             df = pd.DataFrame(forecast_data)
 
-            # Display the table using Streamlit
+            # Display the 5-day weather forecast table
             st.markdown("### 5-Day Weather Forecast")
             st.dataframe(df)  # Display the DataFrame as a table
-                    
-           
+        else:
+            st.warning("Invalid city or location not found. Please try again.")
+
+    else:
+        st.warning("City not entered. Default location weather data will be shown.")
+        # If no city is entered, the default location will be used (from IP location)
+        if weather_data:
+            display_current_weather(weather_data["current"], unit)
+        if hourly_weather:
+            display_hourly_weather(hourly_weather, unit)
+
+        # Fetch and display sunrise and sunset times for the default location
+        sunrise_sunset_data = get_sunrise_sunset(lat, lon)
+        if sunrise_sunset_data:
+            display_sunrise_sunset(sunrise_sunset_data)
+
+
+
 if __name__ == "__main__":
     main()
 
