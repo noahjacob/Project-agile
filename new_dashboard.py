@@ -30,13 +30,14 @@ def get_coordinates(city_name):
             
             # Check if the type of location is a city or town
             if location['addresstype'] in ['city', 'town']: 
-                return float(location['lat']), float(location['lon'])
+                full_address = location['display_name']
+                return float(location['lat']), float(location['lon']), full_address
             else:
                 st.warning(f"City '{city_name}' not found. Please try a valid city.")
-                return None, None
+                return None, None, None
     else:
         st.error(f"API request failed with status code {response.status_code}: {response.text}")
-        return None, None
+        return None, None, None
 
 
 # Function to get the current weather data for a given lat, lon
@@ -203,9 +204,11 @@ def main():
         hourly_weather = get_hourly_weather(lat, lon, unit)
     
     if city:
-        lat, lon = get_coordinates(city) 
+        lat, lon, address = get_coordinates(city) 
 
-        if lat and lon:
+        if lat and lon and address:
+            st.sidebar.success(f"📍 Selected: {address}")
+            
             weather_data = get_weather(lat, lon, unit)
             if weather_data:
                 # Display current weather metrics
