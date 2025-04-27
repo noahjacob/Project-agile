@@ -160,24 +160,7 @@ def display_5_day_forecast(forecast_data):
             'Precipitation (%)': precip_prob
         })
     
-    # Display forecast in Streamlit with card-style layout
-    for _, row in pd.DataFrame(days_data).iterrows():
-        icon_url = get_weather_icon(row['Weather Code'])
-        
-        # Using columns to create card-like layout
-        col1, col2, col3 = st.columns([1, 3, 2])
-        
-        with col1:
-            st.image(icon_url, width=60)  # Display weather icon
-        
-        with col2:
-            st.markdown(f"**{row['Date']}**")
-            st.write(f"**Min Temp**: {row['Min Temp (°C)']}°C | **Max Temp**: {row['Max Temp (°C)']}°C")
-        
-        with col3:
-            st.write(f"**Precipitation**: {row['Precipitation (%)']}%")
-        
-        st.markdown("---")
+   
 
 # Main execution
 def main():
