@@ -1,2 +1,2 @@
 # Project-agile
-A weather dashboard app
+```streamlit run new_dashboard.py```
