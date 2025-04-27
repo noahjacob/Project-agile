@@ -221,13 +221,6 @@ def set_background(weather_code):
         unsafe_allow_html=True
     )
 
-
-    if response.status_code == 200:
-        return response.json()  # Return the response in JSON format
-    else:
-        st.error("Failed to fetch sunrise and sunset data.")  # Error handling
-        return None  # Return None in case of failure
-
 # Function to get sunrise and sunset times
 def get_sunrise_sunset(lat, lon):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset&timezone=auto"
