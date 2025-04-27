@@ -42,7 +42,7 @@ def get_coordinates(city_name):
 
 # Function to get the current weather data for a given lat, lon
 def get_weather(lat, lon, unit='fahrenheit'):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature&wind_speed_unit=mph&temperature_unit={unit}"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code&wind_speed_unit=mph&temperature_unit={unit}"
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()
@@ -72,6 +72,7 @@ def display_current_weather(current, unit):
 
     a, b = st.columns(2)
     c, d = st.columns(2)
+
 
     a.metric("Temperature", temp, border=True)
     b.metric("Wind", wind, border=True)
@@ -131,36 +132,101 @@ def display_hourly_weather(hourly_weather, unit):
 
     st.plotly_chart(fig)
 
-
-def get_5_day_forecast(lat, lon, unit='fahrenheit'):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit={unit}&timezone=auto"
+def get_7_day_forecast(lat, lon, unit='metric'):
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit={unit}&timezone=auto"
     response = requests.get(url)
+
 
     if response.status_code == 200:
         return response.json()
+
     else:
         st.error("Failed to fetch forecast data.")
         return None
 
+def display_7_day_forecast(lat, lon, unit):
+    forecast_data = get_7_day_forecast(lat, lon, unit)
+    daily_data = forecast_data["daily"]
 
-def display_5_day_forecast(forecast_data):
-    # Extract necessary data
-    days_data = []
-    for i in range(len(forecast_data['daily']['temperature_2m_max'])):
-        date = pd.to_datetime(forecast_data['daily']['time'][i]).strftime('%A, %b %d')
-        weather_code = forecast_data['daily']['weathercode'][i]
-        min_temp = forecast_data['daily']['temperature_2m_min'][i]
-        max_temp = forecast_data['daily']['temperature_2m_max'][i]
-        precip_prob = forecast_data['daily']['precipitation_sum'][i] * 100  # Convert precipitation sum to percentage
 
-        days_data.append({
-            'Date': date,
-            'Weather Code': weather_code,
-            'Min Temp (°C)': min_temp,
-            'Max Temp (°C)': max_temp,
-            'Precipitation (%)': precip_prob
-        })
+    df = pd.DataFrame({
+            "Date": pd.to_datetime(daily_data["time"]).strftime('%A, %b %d'),
+            "Max Temp": daily_data["temperature_2m_max"],
+            "Min Temp ": daily_data["temperature_2m_min"],
+            "Precipitation Probability (%)": daily_data["precipitation_probability_max"],
+            "Weather Code": daily_data["weathercode"]
+    })
 
+
+    weather_code_mapping = {
+                0: "Clear sky ☀️",
+                1: "Mainly clear 🌤️",
+                2: "Partly cloudy ⛅",
+                3: "Overcast ☁️",
+                45: "Fog 🌫️",
+                48: "Depositing rime fog 🌫️",
+                51: "Light drizzle 🌦️",
+                53: "Moderate drizzle 🌧️",
+                55: "Dense drizzle 🌧️",
+                61: "Slight rain 🌦️",
+                63: "Moderate rain 🌧️",
+                65: "Heavy rain 🌧️",
+                71: "Slight snow fall ❄️",
+                73: "Moderate snow fall ❄️",
+                75: "Heavy snow fall ❄️",
+                80: "Slight rain showers 🌦️",
+                81: "Moderate rain showers 🌧️",
+                82: "Violent rain showers ⛈️",
+                95: "Thunderstorm ⛈️",
+                96: "Thunderstorm with slight hail ⛈️",
+                99: "Thunderstorm with heavy hail ⛈️"
+            }
+
+    # Replacing 'Weather Code' numbers with text and Icons
+    df["Weather"] = df["Weather Code"].map(weather_code_mapping)
+    df = df.drop(columns=["Weather Code"])
+
+    st.markdown("### 7-Day Weather Forecast")
+    df.index= df.index+1
+    st.dataframe(df)
+
+
+def set_background(weather_code):
+    # Mapping Weather Code to background image URL
+    if weather_code in [0, 1]:
+        bg_url = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?fit=crop&w=1600&q=80"  # sunny
+    elif weather_code in [2, 3]:
+        bg_url = "https://images.unsplash.com/photo-1504945005722-4a3ea3e70a3e?fit=crop&w=1600&q=80"  # cloudy
+    elif weather_code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
+        bg_url = "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?fit=crop&w=1600&q=80"  # rainy
+    elif weather_code in [71, 73, 75]:
+        bg_url = "https://images.unsplash.com/photo-1608889175155-8f0d8ad9c3d3?fit=crop&w=1600&q=80"  # snowy
+    elif weather_code in [95, 96, 99]:
+        bg_url = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?fit=crop&w=1600&q=80"  # thunderstorm
+    else:
+        bg_url = "https://images.unsplash.com/photo-1504945005722-4a3ea3e70a3e?fit=crop&w=1600&q=80"  # default cloudy
+
+    # Injecting background image using Streamlit HTML
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: url("{bg_url}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    if response.status_code == 200:
+        return response.json()  # Return the response in JSON format
+    else:
+        st.error("Failed to fetch sunrise and sunset data.")  # Error handling
+        return None  # Return None in case of failure
 
 # Function to get sunrise and sunset times
 def get_sunrise_sunset(lat, lon):
@@ -171,7 +237,8 @@ def get_sunrise_sunset(lat, lon):
         return response.json()  # Return the response in JSON format
     else:
         st.error("Failed to fetch sunrise and sunset data.")  # Error handling
-        return None  # Return None in case of failure
+        return None
+
 
 # Function to display sunrise and sunset times with Streamlit components
 def display_sunrise_sunset(sunrise_sunset_data):
@@ -220,27 +287,26 @@ def main():
     st.markdown("<h1 style='text-align: center;'>Weather Dashboard</h1>", unsafe_allow_html=True)
     st.markdown(f"<h4 style='text-align: center;'>{datetime.now().strftime('%A, %B %d, %Y')}</h4>", unsafe_allow_html=True)
 
-    # Sidebar for city search and more features
+    # Sidebar for city search and more features.
     st.sidebar.header("🔍 Search City")
     city = st.sidebar.text_input("Enter city name", city_name)
     unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
     st.sidebar.markdown("---")
     st.sidebar.write("⚡ **Powered by Open-Meteo API**")
 
-    # Fetch weather data for the current location
+    # Fetch weather data for current location
     unit = unit.lower()
     with st.spinner("Fetching weather data..."):
         weather_data = get_weather(lat, lon, unit)
         hourly_weather = get_hourly_weather(lat, lon, unit)
-
+    
     if city:
-        # Fetch coordinates for the entered city
-        lat, lon, address = get_coordinates(city)
+        lat, lon, address = get_coordinates(city) 
 
         if lat and lon and address:
+            
             st.sidebar.success(f"📍 Selected: {address}")
-
-            # Fetch weather data for the selected city
+            
             weather_data = get_weather(lat, lon, unit)
             if weather_data:
                 # Display current weather metrics
@@ -256,39 +322,16 @@ def main():
             if sunrise_sunset_data:
                 display_sunrise_sunset(sunrise_sunset_data)
 
-            # Example 5-day weather forecast data (this should come from another API or static data)
-            forecast_data = {
-                "Date": ['Monday, Apr 07', 'Tuesday, Apr 08', 'Wednesday, Apr 09', 'Thursday, Apr 10', 'Friday, Apr 11'],
-                "Weather": ['Clear Sky', 'Partly Cloudy', 'Rainy', 'Sunny', 'Cloudy'],
-                "Min Temp (°C)": [12, 15, 14, 16, 13],
-                "Max Temp (°C)": [22, 25, 23, 28, 26],
-                "Precipitation (%)": [0, 20, 80, 0, 30]
-            }
+            display_7_day_forecast(lat, lon, unit)
 
-            # Convert forecast data to DataFrame for visualization
-            df = pd.DataFrame(forecast_data)
+            # After fetching weather data
+            current_weather_code = weather_data["current"]["weather_code"]
 
-            # Display the 5-day weather forecast table
-            st.markdown("### 5-Day Weather Forecast")
-            st.dataframe(df)  # Display the DataFrame as a table
-        else:
-            st.warning("Invalid city or location not found. Please try again.")
-
-    else:
-        st.warning("City not entered. Default location weather data will be shown.")
-        # If no city is entered, the default location will be used (from IP location)
-        if weather_data:
-            display_current_weather(weather_data["current"], unit)
-        if hourly_weather:
-            display_hourly_weather(hourly_weather, unit)
-
-        # Fetch and display sunrise and sunset times for the default location
-        sunrise_sunset_data = get_sunrise_sunset(lat, lon)
-        if sunrise_sunset_data:
-            display_sunrise_sunset(sunrise_sunset_data)
+            #    Set background according to current weather
+            set_background(current_weather_code)
 
 
-
+           
 if __name__ == "__main__":
     main()
 
