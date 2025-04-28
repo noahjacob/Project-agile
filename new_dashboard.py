@@ -430,7 +430,7 @@ def main():
                 hourly_weather = get_hourly_weather(lat, lon, unit)
                 if hourly_weather:
                     # Display hourly weather trends
-                    display_hourly_weather(hourly_weather, unit)
+                    display_hourly_weather(hourly_weather, unit, hours)
 
                 # Fetch and display sunrise and sunset times
                 sunrise_sunset_data = get_sunrise_sunset(lat, lon)
