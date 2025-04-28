@@ -266,74 +266,91 @@ def user_login():
     else:
         st.sidebar.success(f"Welcome, {st.session_state.user_email}")
         if st.sidebar.button("Logout"):
-            st.session_state.logged_in = False
-            st.session_state.user_email = ""
+            st.session_state.clear() # Clear all session state variables on logout
             st.query_params.clear()  # Clear from URL
             st.rerun()
 
     return st.session_state.logged_in, st.session_state.user_email
 
 
+FAV_FILE = "favorites.csv"
 
-FAV_FILE = "favorites.json"
-
-@st.cache_data
+# Load favorites from CSV
 def load_favorites():
     if os.path.exists(FAV_FILE):
-        with open(FAV_FILE, "r") as f:
-            return json.load(f)
+        return pd.read_csv(FAV_FILE)
     else:
-        return []
+        return pd.DataFrame(columns=["user", "city"])
 
-def save_favorites(favorites):
-    with open(FAV_FILE, "w") as f:
-        json.dump(favorites, f)
+# Save favorites to CSV
+def save_favorites(fav_df):
+    fav_df.to_csv(FAV_FILE, index=False)
 
 
-def manage_favorites(city):
+def manage_favorites(city, user):
     """
     Displays favorite city management section inside the sidebar.
     Returns the updated city based on user selection.
     """
 
-    # Initialize favorites in session_state if missing
-    if "favorites" not in st.session_state:
-        st.session_state["favorites"] = load_favorites()
+     # Load favorites from file into session_state if missing
+    if "favorites_df" not in st.session_state:
+        st.session_state["favorites_df"] = load_favorites()
 
-    emoji_options = ["🌎", "🏙️", "🌆", "🌉", "🗽", "🏖️"]
+    df = st.session_state["favorites_df"]
+    user_favorites = df[df["user"] == user]
 
     # Add to Favorites button
     if st.sidebar.button("⭐ Add to Favorites"):
         if city:
-            if city not in st.session_state["favorites"]:
-                if len(st.session_state["favorites"]) < 5:
-                    emoji = emoji_options[len(st.session_state["favorites"]) % len(emoji_options)]
-                    favorite_entry = f"{emoji} {city}"
-                    st.session_state["favorites"].append(favorite_entry)
-                    save_favorites(st.session_state["favorites"])
+            if city not in user_favorites["city"].values:
+                if len(user_favorites) < 5:
+                    new_entry = pd.DataFrame([{"user": user, "city": city}])
+                    df = pd.concat([df, new_entry], ignore_index=True)
+                    save_favorites(df)
+                    st.session_state["favorites_df"] = df  # Update session_state
                     st.success(f"'{city}' added to favorites!")
                 else:
                     st.error("❌ You can only save 5 favorite cities!")
             else:
                 st.warning("⚠️ City already in favorites!")
 
+    # Reload user_favorites after possible add/remove
+    df = load_favorites()
+    st.session_state["favorites_df"] = df
+    user_favorites = df[df["user"] == user]
+
     # Show Favorites and actions
-    if st.session_state["favorites"]:
-        fav_city = st.sidebar.selectbox("⭐ Choose Favorite", st.session_state["favorites"])
+    if not user_favorites.empty:
+        fav_city = st.sidebar.selectbox("⭐ Choose Favorite", user_favorites["city"].tolist())
 
         col1, col2 = st.sidebar.columns(2)
         with col1:
             if st.sidebar.button("🔄 Load Favorite"):
-                selected_city = fav_city.split(" ", 1)[1]  # Remove emoji part
-                city = selected_city
-                st.success(f"Loaded favorite: {selected_city}")
+                city = fav_city
+                st.success(f"Loaded favorite: {fav_city}")
         with col2:
             if st.sidebar.button("🗑️ Remove Favorite"):
-                st.session_state["favorites"].remove(fav_city)
-                save_favorites(st.session_state["favorites"])
+                df = df[~((df["user"] == user) & (df["city"] == fav_city))]
+                save_favorites(df)
+                st.session_state["favorites_df"] = df
                 st.success(f"Removed favorite: {fav_city}")
+                st.rerun()
+                
 
     return city
+
+SETTINGS_FILE = "settings.csv"
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        return pd.read_csv(SETTINGS_FILE)
+    else:
+        return pd.DataFrame(columns=["user", "unit"])
+
+def save_settings(settings_df):
+    settings_df.to_csv(SETTINGS_FILE, index=False)
+
 
 # Main execution
 def main():
@@ -356,10 +373,33 @@ def main():
 
     # You can now use `logged_in` and `user_email` throughout your app
     if logged_in:
+        settings_df = load_settings()
+        user_settings = settings_df[settings_df["user"] == user_email]
+
+        if "unit" not in st.session_state:
+            if not user_settings.empty:
+                st.session_state.unit = user_settings["unit"].iloc[0]
+            else:
+                st.session_state.unit = "fahrenheit"  # Default
+        
     
         st.sidebar.header("🔍 Search City")
         city = st.sidebar.text_input("Enter city name", city_name)
-        unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
+        unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"),
+                            index=0 if st.session_state.unit == "fahrenheit" else 1)
+        st.session_state.unit = unit
+
+        # Save or update unit preference for the user
+        if not user_settings.empty:
+            if user_settings["unit"].iloc[0] != st.session_state.unit:
+                settings_df.loc[settings_df["user"] == user_email, "unit"] = st.session_state.unit
+                save_settings(settings_df)
+        else:
+            new_setting = pd.DataFrame([{"user": user_email, "unit": st.session_state.unit}])
+            settings_df = pd.concat([settings_df, new_setting], ignore_index=True)
+            save_settings(settings_df)
+
+        # Forecast graph range slider.
         options = [12, 24, 36, 48]
         labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
 
@@ -373,7 +413,7 @@ def main():
         value_map = dict(zip(labels, options))
         selected_value = value_map[selected_label]
 
-        city = manage_favorites(city)
+        city = manage_favorites(city, user_email)
 
         st.sidebar.markdown("---")
         st.sidebar.write("⚡ **Powered by Open-Meteo API**")
