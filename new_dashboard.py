@@ -383,11 +383,12 @@ def main():
     # You can now use `logged_in` and `user_email` throughout your app
     if logged_in:
         settings_df = load_settings()
+
         user_settings = settings_df[settings_df["user"] == user_email]
 
         if "unit" not in st.session_state:
             if not user_settings.empty:
-                st.session_state.unit = user_settings["unit"].iloc[0]
+                st.session_state.unit = user_settings["unit"].iloc[0].lower()
             else:
                 st.session_state.unit = "fahrenheit"  # Default
         
@@ -395,6 +396,7 @@ def main():
         city = st.sidebar.text_input("Enter city name", city_name)
         unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"),
                             index=0 if st.session_state.unit == "fahrenheit" else 1)
+        
         st.session_state.unit = unit
 
         
