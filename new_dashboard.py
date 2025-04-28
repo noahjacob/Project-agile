@@ -3,6 +3,8 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
+import json
+import os
 
 
 # Function to get the user's current location based on IP
@@ -269,6 +271,67 @@ def display_sunrise_sunset(sunrise_sunset_data):
         st.error(f"An error occurred: {e}")
 
 
+
+FAV_FILE = "favorites.json"
+
+@st.cache_data
+def load_favorites():
+    if os.path.exists(FAV_FILE):
+        with open(FAV_FILE, "r") as f:
+            return json.load(f)
+    else:
+        return []
+
+def save_favorites(favorites):
+    with open(FAV_FILE, "w") as f:
+        json.dump(favorites, f)
+
+
+def manage_favorites(city):
+    """
+    Displays favorite city management section inside the sidebar.
+    Returns the updated city based on user selection.
+    """
+
+    # Initialize favorites in session_state if missing
+    if "favorites" not in st.session_state:
+        st.session_state["favorites"] = load_favorites()
+
+    emoji_options = ["🌎", "🏙️", "🌆", "🌉", "🗽", "🏖️"]
+
+    # Add to Favorites button
+    if st.sidebar.button("⭐ Add to Favorites"):
+        if city:
+            if city not in st.session_state["favorites"]:
+                if len(st.session_state["favorites"]) < 5:
+                    emoji = emoji_options[len(st.session_state["favorites"]) % len(emoji_options)]
+                    favorite_entry = f"{emoji} {city}"
+                    st.session_state["favorites"].append(favorite_entry)
+                    save_favorites(st.session_state["favorites"])
+                    st.success(f"'{city}' added to favorites!")
+                else:
+                    st.error("❌ You can only save 5 favorite cities!")
+            else:
+                st.warning("⚠️ City already in favorites!")
+
+    # Show Favorites and actions
+    if st.session_state["favorites"]:
+        fav_city = st.sidebar.selectbox("⭐ Choose Favorite", st.session_state["favorites"])
+
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            if st.sidebar.button("🔄 Load Favorite"):
+                selected_city = fav_city.split(" ", 1)[1]  # Remove emoji part
+                city = selected_city
+                st.success(f"Loaded favorite: {selected_city}")
+        with col2:
+            if st.sidebar.button("🗑️ Remove Favorite"):
+                st.session_state["favorites"].remove(fav_city)
+                save_favorites(st.session_state["favorites"])
+                st.success(f"Removed favorite: {fav_city}")
+
+    return city
+
 # Main execution
 def main():
     city_name, lat, lon = get_current_location()
@@ -314,6 +377,26 @@ def main():
 
             st.sidebar.success(f"📍 Selected: {address}")
 
+    params = st.query_params
+    if "email" in params:
+        st.session_state.user_email = params["email"]
+        st.session_state.logged_in = True
+
+    logged_in, user_email = user_login()
+
+    # You can now use `logged_in` and `user_email` throughout your app
+    if logged_in:
+    
+        st.sidebar.header("🔍 Search City")
+        city = st.sidebar.text_input("Enter city name", city_name)
+        unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
+        st.sidebar.markdown("---")
+        st.sidebar.write("⚡ **Powered by Open-Meteo API**")
+        city = manage_favorites(city)
+
+        # Fetch weather data for current location
+        unit = unit.lower()
+        with st.spinner("Fetching weather data..."):
             weather_data = get_weather(lat, lon, unit)
             if weather_data:
                 # Display current weather metrics
