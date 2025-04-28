@@ -347,7 +347,7 @@ def load_settings():
     if os.path.exists(SETTINGS_FILE):
         return pd.read_csv(SETTINGS_FILE)
     else:
-        return pd.DataFrame(columns=["user", "unit"])
+        return pd.DataFrame(columns=["user", "unit", "sections", "forecast_range"])
 
 def save_settings(settings_df):
     settings_df.to_csv(SETTINGS_FILE, index=False)
@@ -391,47 +391,74 @@ def main():
             else:
                 st.session_state.unit = "fahrenheit"  # Default
         
-    
         st.sidebar.header("🔍 Search City")
         city = st.sidebar.text_input("Enter city name", city_name)
         unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"),
                             index=0 if st.session_state.unit == "fahrenheit" else 1)
         st.session_state.unit = unit
 
-        # Save or update unit preference for the user
-        if not user_settings.empty:
-            if user_settings["unit"].iloc[0] != st.session_state.unit:
-                settings_df.loc[settings_df["user"] == user_email, "unit"] = st.session_state.unit
-                save_settings(settings_df)
-        else:
-            new_setting = pd.DataFrame([{"user": user_email, "unit": st.session_state.unit}])
-            settings_df = pd.concat([settings_df, new_setting], ignore_index=True)
-            save_settings(settings_df)
+        
+        if "sections" not in st.session_state:
+            if not user_settings.empty and pd.notna(user_settings["sections"].iloc[0]):
+                st.session_state.sections = user_settings["sections"].iloc[0].split(",")
+            else:
+                st.session_state.sections = ["Current Weather"]
 
         selected_sections = st.sidebar.multiselect(
         "📊 Select Sections to Display:",
         ["Current Weather", "Hourly Graph", "Sunrise/Sunset", "7-Day Forecast"],
-        default=["Current Weather"] 
-)
+        default=st.session_state.sections      
+        )
+        st.session_state.sections = selected_sections
+
+        # Forecast graph range slider.
+        options = [12, 24, 36, 48]
+        labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
+
+        if "forecast_range" not in st.session_state:
+            if not user_settings.empty and pd.notna(user_settings["forecast_range"].iloc[0]):
+                default_range = f"{int(user_settings['forecast_range'].iloc[0])} Hours"
+            else:
+                default_range = labels[0]
+        else:
+            default_range = f"{st.session_state.forecast_range} Hours"
+
         if "Hourly Graph" in selected_sections:
-            # Forecast graph range slider.
-            options = [12, 24, 36, 48]
-            labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
 
             selected_label = st.sidebar.select_slider(
                 "Forecast Range:",
                 options=labels,
-                value=labels[0]
+                value=default_range
             )
 
             # Map label back to value
             value_map = dict(zip(labels, options))
             selected_value = value_map[selected_label]
 
+            st.session_state.forecast_range = selected_value
+
         city = manage_favorites(city, user_email)
 
         st.sidebar.markdown("---")
         st.sidebar.write("⚡ **Powered by Open-Meteo API**")
+
+        # Save all user settings
+        if not user_settings.empty:
+            settings_df.loc[settings_df["user"] == user_email, ["unit", "sections", "forecast_range"]] = [
+                st.session_state.unit,
+                ",".join(st.session_state.sections),
+                st.session_state.forecast_range
+            ]
+        else:
+            new_setting = pd.DataFrame([{
+                "user": user_email,
+                "unit": st.session_state.unit,
+                "sections": ",".join(st.session_state.sections),
+                "forecast_range": st.session_state.forecast_range
+            }])
+            settings_df = pd.concat([settings_df, new_setting], ignore_index=True)
+
+        save_settings(settings_df)
 
         # Fetch weather data for current location
         unit = unit.lower()
