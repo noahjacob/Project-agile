@@ -192,37 +192,6 @@ def display_7_day_forecast(lat, lon, unit):
     df.index= df.index+1
     st.dataframe(df)
 
-
-def set_background(weather_code):
-    # Mapping Weather Code to background image URL
-    if weather_code in [0, 1]:
-        bg_url = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?fit=crop&w=1600&q=80"  # sunny
-    elif weather_code in [2, 3]:
-        bg_url = "https://images.unsplash.com/photo-1504945005722-4a3ea3e70a3e?fit=crop&w=1600&q=80"  # cloudy
-    elif weather_code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
-        bg_url = "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?fit=crop&w=1600&q=80"  # rainy
-    elif weather_code in [71, 73, 75]:
-        bg_url = "https://images.unsplash.com/photo-1608889175155-8f0d8ad9c3d3?fit=crop&w=1600&q=80"  # snowy
-    elif weather_code in [95, 96, 99]:
-        bg_url = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?fit=crop&w=1600&q=80"  # thunderstorm
-    else:
-        bg_url = "https://images.unsplash.com/photo-1504945005722-4a3ea3e70a3e?fit=crop&w=1600&q=80"  # default cloudy
-
-    # Injecting background image using Streamlit HTML
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background: url("{bg_url}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
 # Function to get sunrise and sunset times
 def get_sunrise_sunset(lat, lon):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset&timezone=auto"
@@ -442,13 +411,9 @@ def main():
                 # After fetching weather data
                 current_weather_code = weather_data["current"]["weather_code"]
 
-                #    Set background according to current weather
-                set_background(current_weather_code)
-
     # Proceed with weather data, user-specific features, etc.
     else:
         st.info("Please log in to view weather data.")
-
 
 
 if __name__ == "__main__":
