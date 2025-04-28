@@ -3,9 +3,8 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
-import json
 import os
-
+from streamlit_autorefresh import st_autorefresh
 
 # Function to get the user's current location based on IP
 def get_current_location():
@@ -363,11 +362,19 @@ def main():
     st.markdown("<h1 style='text-align: center;'>Weather Dashboard</h1>", unsafe_allow_html=True)
     st.markdown(f"<h4 style='text-align: center;'>{datetime.now().strftime('%A, %B %d, %Y')}</h4>", unsafe_allow_html=True)
 
+    # Auto-refresh every 10 minutes
+    st_autorefresh(interval=600000, key="auto_refresh")
+    
+
     # Sidebar for city search and more features.
     params = st.query_params
     if "email" in params:
         st.session_state.user_email = params["email"]
         st.session_state.logged_in = True
+
+    if st.session_state.get("logged_in", False):
+        if st.sidebar.button("Refresh"):
+            st.rerun()
 
     logged_in, user_email = user_login()
 
