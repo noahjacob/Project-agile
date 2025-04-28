@@ -81,7 +81,7 @@ def display_current_weather(current, unit):
 
 
 # Function to display hourly weather trends
-def display_hourly_weather(hourly_weather, unit):
+def display_hourly_weather(hourly_weather, unit, hours):
     # Convert data to DataFrame for visualization
     df = pd.DataFrame({
         "Time": pd.to_datetime(hourly_weather["time"]),  # Convert timestamps
@@ -89,7 +89,7 @@ def display_hourly_weather(hourly_weather, unit):
         "Humidity": hourly_weather["relative_humidity_2m"]
     })
     current_time = datetime.now()
-    future_time = current_time + timedelta(hours=12)
+    future_time = current_time + timedelta(hours=hours)
 
     # Filter the DataFrame to only include data within the next 12 hours
     df = df[(df["Time"] >= current_time) & (df["Time"] <= future_time)]
@@ -101,7 +101,7 @@ def display_hourly_weather(hourly_weather, unit):
     # Plot the chart using Plotly
     fig = px.line(df, x="Time", y=["Temperature", "Humidity"], title="Hourly Temperature & Humidity Trend")
 
-    # Update hovertemplate for Temperature
+    # Update hover template for Temperature
     unit = unit[0].upper()
     df["Unit"] = unit
     fig.update_traces(
@@ -268,40 +268,6 @@ def display_sunrise_sunset(sunrise_sunset_data):
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
-def user_login():
-    st.sidebar.markdown("### 🙋 User Login")
-
-    if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = False
-        st.session_state.user_email = ""
-
-    # Check query params on load
-    params = st.query_params
-    if not st.session_state.logged_in and "email" in params:
-        st.session_state.user_email = params["email"]
-        st.session_state.logged_in = True
-
-    if not st.session_state.logged_in:
-        user_email_input = st.sidebar.text_input("Enter your email to login", key="email_input")
-        if st.sidebar.button("Login"):
-            if user_email_input:
-                st.session_state.logged_in = True
-                st.session_state.user_email = user_email_input
-                st.query_params["email"] = user_email_input  # Save in URL
-                st.sidebar.success(f"Logged in as {user_email_input}")
-                st.rerun()
-            else:
-                st.sidebar.error("Please enter a valid email.")
-    else:
-        st.sidebar.success(f"Welcome, {st.session_state.user_email}")
-        if st.sidebar.button("Logout"):
-            st.session_state.logged_in = False
-            st.session_state.user_email = ""
-            st.query_params.clear()  # Clear from URL
-            st.rerun()
-
-    return st.session_state.logged_in, st.session_state.user_email
-
 
 # Main execution
 def main():
@@ -315,64 +281,64 @@ def main():
     st.markdown(f"<h4 style='text-align: center;'>{datetime.now().strftime('%A, %B %d, %Y')}</h4>", unsafe_allow_html=True)
 
     # Sidebar for city search and more features.
-    params = st.query_params
-    if "email" in params:
-        st.session_state.user_email = params["email"]
-        st.session_state.logged_in = True
+    st.sidebar.header("🔍 Search City")
+    city = st.sidebar.text_input("Enter city name", city_name)
+    unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
+    options = [12, 24, 36, 48]
+    labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
 
-    logged_in, user_email = user_login()
+    selected_label = st.sidebar.select_slider(
+        "Forecast Range:",
+        options=labels,
+        value=labels[0]
+    )
 
-    # You can now use `logged_in` and `user_email` throughout your app
-    if logged_in:
-    
-        st.sidebar.header("🔍 Search City")
-        city = st.sidebar.text_input("Enter city name", city_name)
-        unit = st.sidebar.selectbox("Select Temperature Unit", ("Fahrenheit", "Celsius"))
-        st.sidebar.markdown("---")
-        st.sidebar.write("⚡ **Powered by Open-Meteo API**")
+    # Map label back to value
+    value_map = dict(zip(labels, options))
+    selected_value = value_map[selected_label]
 
-        # Fetch weather data for current location
-        unit = unit.lower()
-        with st.spinner("Fetching weather data..."):
+    st.write(f"Selected: {selected_value} hours")
+    st.sidebar.markdown("---")
+    st.sidebar.write("⚡ **Powered by Open-Meteo API**")
+
+    # Fetch weather data for current location
+    unit = unit.lower()
+    with st.spinner("Fetching weather data..."):
+        weather_data = get_weather(lat, lon, unit)
+        hourly_weather = get_hourly_weather(lat, lon, unit)
+
+    if city:
+        lat, lon, address = get_coordinates(city)
+
+        if lat and lon and address:
+
+            st.sidebar.success(f"📍 Selected: {address}")
+
             weather_data = get_weather(lat, lon, unit)
+            if weather_data:
+                # Display current weather metrics
+                display_current_weather(weather_data["current"], unit)
+
             hourly_weather = get_hourly_weather(lat, lon, unit)
-        
-        if city:
-            lat, lon, address = get_coordinates(city) 
+            if hourly_weather:
+                # Display hourly weather trends
+                display_hourly_weather(hourly_weather, unit, selected_value)
 
-            if lat and lon and address:
-                
-                st.sidebar.success(f"📍 Selected: {address}")
-                
-                weather_data = get_weather(lat, lon, unit)
-                if weather_data:
-                    # Display current weather metrics
-                    display_current_weather(weather_data["current"], unit)
+            # Fetch and display sunrise and sunset times
+            sunrise_sunset_data = get_sunrise_sunset(lat, lon)
+            if sunrise_sunset_data:
+                display_sunrise_sunset(sunrise_sunset_data)
 
-                hourly_weather = get_hourly_weather(lat, lon, unit)
-                if hourly_weather:
-                    # Display hourly weather trends
-                    display_hourly_weather(hourly_weather, unit)
+            display_7_day_forecast(lat, lon, unit)
 
-                # Fetch and display sunrise and sunset times
-                sunrise_sunset_data = get_sunrise_sunset(lat, lon)
-                if sunrise_sunset_data:
-                    display_sunrise_sunset(sunrise_sunset_data)
+            # After fetching weather data
+            current_weather_code = weather_data["current"]["weather_code"]
 
-                display_7_day_forecast(lat, lon, unit)
-
-                # After fetching weather data
-                current_weather_code = weather_data["current"]["weather_code"]
-
-                #    Set background according to current weather
-                set_background(current_weather_code)
-
-    # Proceed with weather data, user-specific features, etc.
-    else:
-        st.info("Please log in to view weather data.")
+            #    Set background according to current weather
+            set_background(current_weather_code)
 
 
-           
+
 if __name__ == "__main__":
     main()
 
