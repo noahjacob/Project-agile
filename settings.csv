@@ -1,3 +1,3 @@
 user,unit,sections,forecast_range
 noah,Celsius,"Current Weather,Hourly Graph",36.0
-sujay,Celsius,"Current Weather,Hourly Graph,Sunrise/Sunset",24.0
+sujay,Celsius,"Sunrise/Sunset,Current Weather,7-Day Forecast,Hourly Graph",24.0
