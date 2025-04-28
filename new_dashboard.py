@@ -270,6 +270,40 @@ def display_sunrise_sunset(sunrise_sunset_data):
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
+def user_login():
+    st.sidebar.markdown("### 🙋 User Login")
+
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+        st.session_state.user_email = ""
+
+    # Check query params on load
+    params = st.query_params
+    if not st.session_state.logged_in and "email" in params:
+        st.session_state.user_email = params["email"]
+        st.session_state.logged_in = True
+
+    if not st.session_state.logged_in:
+        user_email_input = st.sidebar.text_input("Enter your email to login", key="email_input")
+        if st.sidebar.button("Login"):
+            if user_email_input:
+                st.session_state.logged_in = True
+                st.session_state.user_email = user_email_input
+                st.query_params["email"] = user_email_input  # Save in URL
+                st.sidebar.success(f"Logged in as {user_email_input}")
+                st.rerun()
+            else:
+                st.sidebar.error("Please enter a valid email.")
+    else:
+        st.sidebar.success(f"Welcome, {st.session_state.user_email}")
+        if st.sidebar.button("Logout"):
+            st.session_state.logged_in = False
+            st.session_state.user_email = ""
+            st.query_params.clear()  # Clear from URL
+            st.rerun()
+
+    return st.session_state.logged_in, st.session_state.user_email
+
 
 
 FAV_FILE = "favorites.json"
@@ -375,41 +409,45 @@ def main():
         st.sidebar.write("⚡ **Powered by Open-Meteo API**")
         city = manage_favorites(city)
 
-    # Fetch weather data for current location
-    unit = unit.lower()
-    with st.spinner("Fetching weather data..."):
-        weather_data = get_weather(lat, lon, unit)
-        hourly_weather = get_hourly_weather(lat, lon, unit)
-
-    if city:
-        lat, lon, address = get_coordinates(city)
-
-        if lat and lon and address:
-
-            st.sidebar.success(f"📍 Selected: {address}")
-
+        # Fetch weather data for current location
+        unit = unit.lower()
+        with st.spinner("Fetching weather data..."):
             weather_data = get_weather(lat, lon, unit)
-            if weather_data:
-                # Display current weather metrics
-                display_current_weather(weather_data["current"], unit)
-
             hourly_weather = get_hourly_weather(lat, lon, unit)
-            if hourly_weather:
-                # Display hourly weather trends
-                display_hourly_weather(hourly_weather, unit, selected_value)
 
-            # Fetch and display sunrise and sunset times
-            sunrise_sunset_data = get_sunrise_sunset(lat, lon)
-            if sunrise_sunset_data:
-                display_sunrise_sunset(sunrise_sunset_data)
+        if city:
+            lat, lon, address = get_coordinates(city)
 
-            display_7_day_forecast(lat, lon, unit)
+            if lat and lon and address:
 
-            # After fetching weather data
-            current_weather_code = weather_data["current"]["weather_code"]
+                st.sidebar.success(f"📍 Selected: {address}")
 
-            #    Set background according to current weather
-            set_background(current_weather_code)
+                weather_data = get_weather(lat, lon, unit)
+                if weather_data:
+                    # Display current weather metrics
+                    display_current_weather(weather_data["current"], unit)
+
+                hourly_weather = get_hourly_weather(lat, lon, unit)
+                if hourly_weather:
+                    # Display hourly weather trends
+                    display_hourly_weather(hourly_weather, unit)
+
+                # Fetch and display sunrise and sunset times
+                sunrise_sunset_data = get_sunrise_sunset(lat, lon)
+                if sunrise_sunset_data:
+                    display_sunrise_sunset(sunrise_sunset_data)
+
+                display_7_day_forecast(lat, lon, unit)
+
+                # After fetching weather data
+                current_weather_code = weather_data["current"]["weather_code"]
+
+                #    Set background according to current weather
+                set_background(current_weather_code)
+
+    # Proceed with weather data, user-specific features, etc.
+    else:
+        st.info("Please log in to view weather data.")
 
 
 
