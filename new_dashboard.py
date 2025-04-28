@@ -408,19 +408,25 @@ def main():
             settings_df = pd.concat([settings_df, new_setting], ignore_index=True)
             save_settings(settings_df)
 
-        # Forecast graph range slider.
-        options = [12, 24, 36, 48]
-        labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
+        selected_sections = st.sidebar.multiselect(
+        "📊 Select Sections to Display:",
+        ["Current Weather", "Hourly Graph", "Sunrise/Sunset", "7-Day Forecast"],
+        default=["Current Weather"] 
+)
+        if "Hourly Graph" in selected_sections:
+            # Forecast graph range slider.
+            options = [12, 24, 36, 48]
+            labels = ["12 Hours", "24 Hours", "36 Hours", "48 Hours"]
 
-        selected_label = st.sidebar.select_slider(
-            "Forecast Range:",
-            options=labels,
-            value=labels[0]
-        )
+            selected_label = st.sidebar.select_slider(
+                "Forecast Range:",
+                options=labels,
+                value=labels[0]
+            )
 
-        # Map label back to value
-        value_map = dict(zip(labels, options))
-        selected_value = value_map[selected_label]
+            # Map label back to value
+            value_map = dict(zip(labels, options))
+            selected_value = value_map[selected_label]
 
         city = manage_favorites(city, user_email)
 
@@ -441,24 +447,23 @@ def main():
                 st.sidebar.success(f"📍 Selected: {address}")
 
                 weather_data = get_weather(lat, lon, unit)
-                if weather_data:
+                if weather_data and "Current Weather" in selected_sections:
                     # Display current weather metrics
                     display_current_weather(weather_data["current"], unit)
 
                 hourly_weather = get_hourly_weather(lat, lon, unit)
-                if hourly_weather:
+                if hourly_weather and "Hourly Graph" in selected_sections:
                     # Display hourly weather trends
                     display_hourly_weather(hourly_weather, unit, selected_value)
 
                 # Fetch and display sunrise and sunset times
                 sunrise_sunset_data = get_sunrise_sunset(lat, lon)
-                if sunrise_sunset_data:
+                if sunrise_sunset_data and "Sunrise/Sunset" in selected_sections :
                     display_sunrise_sunset(sunrise_sunset_data)
 
-                display_7_day_forecast(lat, lon, unit)
+                if "7-Day Forecast" in selected_sections:
+                    display_7_day_forecast(lat, lon, unit)
 
-                # After fetching weather data
-                current_weather_code = weather_data["current"]["weather_code"]
 
     # Proceed with weather data, user-specific features, etc.
     else:
