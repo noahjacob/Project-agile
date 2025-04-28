@@ -373,10 +373,10 @@ def main():
         value_map = dict(zip(labels, options))
         selected_value = value_map[selected_label]
 
-        st.write(f"Selected: {selected_value} hours")
+        city = manage_favorites(city)
+
         st.sidebar.markdown("---")
         st.sidebar.write("⚡ **Powered by Open-Meteo API**")
-        city = manage_favorites(city)
 
         # Fetch weather data for current location
         unit = unit.lower()
