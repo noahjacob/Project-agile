@@ -419,11 +419,10 @@ def main():
 
         if "forecast_range" not in st.session_state:
             if not user_settings.empty and pd.notna(user_settings["forecast_range"].iloc[0]):
-                default_range = f"{int(user_settings['forecast_range'].iloc[0])} Hours"
+                st.session_state.forecast_range = int(user_settings["forecast_range"].iloc[0])
             else:
-                default_range = labels[0]
-        else:
-            default_range = f"{st.session_state.forecast_range} Hours"
+                st.session_state.forecast_range = 12  # default to 12 hours
+        default_range = f"{st.session_state.forecast_range} Hours"
 
         if "Hourly Graph" in selected_sections:
 
