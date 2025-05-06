@@ -29,10 +29,10 @@ def get_coordinates(city_name):
             # Ensure that the result is actually a city and not a region or street
             location = location_data[0]
             
-            valid_types = ['city', 'town', 'village', 'administrative', 'municipality', 'state']
+            valid_types = ['city', 'town', 'village', 'administrative', 'municipality', 'state', 'province']
 
             # Check if the type of location is a city or town
-            if location['addresstype'] in valid_types or location['name'] == city_name:
+            if location['addresstype'] in valid_types or location['name'] == city_name or location['type'] in valid_types:
                 full_address = location['display_name']
                 return float(location['lat']), float(location['lon']), full_address
             else:
