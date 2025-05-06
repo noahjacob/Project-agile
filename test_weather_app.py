@@ -10,7 +10,7 @@ def test_get_coordinates_valid_city():
 
 # Test 2: Invalid city coordinates
 def test_get_coordinates_invalid_city():
-    lat, lon, address = get_coordinates("Th")
+    lat, lon, address = get_coordinates("Invalid")
     assert lat is None
     assert lon is None
     assert address is None
